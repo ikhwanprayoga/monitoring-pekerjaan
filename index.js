@@ -37,7 +37,7 @@ app.get('/test', (req, res) => {
 })
 
 app.get('/activities', (req, res) => {
-      let sql = 'SELECT * FROM activities'
+      let sql = 'SELECT * FROM activities ORDER BY id DESC'
       let query = conn.query(sql, (err, result) => {
             if (err) throw err
             res.status(200).send({
@@ -142,32 +142,35 @@ app.post('/activity/update/:id', (req, res) => {
 });
 
 app.delete('/activity/:id', (req, res) => {
+      let path = ''
       const paramsId = req.params.id
       try {
             let sql = `DELETE FROM activities WHERE id=${paramsId}`
             let query = conn.query(sql, (err, result) => {
-                  if (err) throw err
-                  res.send(result)
-                  // if (!result.fieldCount) {
-                  //       res.status(404).send({message: 'data not found'})
-                  // }
+                  if (err) {
+                        res.status(500).send(err)
+                  }
+                  // res.send(result)
+                  if (result.affectedRows < 1) {
+                        res.status(404).send({message: 'data not found'})
+                  } else {
+                        let sqlFile = `SELECT * FROM files WHERE activity_id=${paramsId}`
+                        let queryFile = conn.query(sqlFile, (err, result) => {
+                              // res.status(200).send({result});
+                              // delete file
+                              result.forEach(e => {
+                                    path = `./public/photos/${e.file}`
+                                    fs.unlinkSync(path);
+                                    conn.query(`DELETE FROM files WHERE id=${e.id}`)
+                              });
+                              res.status(200).send({
+                                    message: 'success',
+                              });
+                        })
+                  }
+                  
             })
 
-            let sqlFile = `SELECT * FROM files WHERE activity_id=${paramsId}`
-            let queryFile = conn.query(sqlFile, (err, result) => {
-                  // res.status(200).send({result});
-                  // delete file
-                  result.forEach(e => {
-                        fs.unlink(`./public/photos/${e.file}`, (err, re) => {
-                              // if (err) res.status(500).send(err)
-                              
-                              // return res.send('ss')    
-                      });
-                  });
-                  res.status(200).send({
-                        message: 'success',
-                  });
-            })
 
       } catch (error) {
             res.status(500).send({
