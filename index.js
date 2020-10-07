@@ -5,9 +5,26 @@ const fs          = require('fs')
 const mysql       = require('mysql')
 const md5         = require('md5')
 const jwt         = require('jsonwebtoken');
+const cors        = require('cors')
 // const verifytoken = require('../../nodeJS-first/app/routes/verifytoken');
 
 const app = express()
+
+let whiteList = [
+      'http://localhost:3000'
+  ]
+  
+let corsOption = {
+      origin: (origin, callback) => {
+          if (whiteList.indexOf(origin) !== -1 || !origin) {
+              callback(null, callback)
+          } else {
+              callback(new Error("not allowed by CORS"))
+          }
+      }
+}
+
+app.use(cors(corsOption))
 
 app.use(fileUpload())
 
@@ -134,7 +151,7 @@ app.get('/api/v1/activities', verifytoken, (req, res) => {
                   let sql = 'SELECT * FROM activities ORDER BY id DESC'
                   let query = conn.query(sql, (err, result) => {
                         if (err) throw err
-                        res.status(200).send({
+                        res.status(200).json({
                               message: 'success',
                               data: result
                         })
@@ -164,7 +181,7 @@ app.get('/api/v1/activity/:id', verifytoken, (req, res) => {
 app.post('/api/v1/activity', verifytoken, (req, res) => {
       jwt.verify(req.token, 'secretKey', (err, authData) =>{
             if (err) {
-                  res.sendStatus(403)
+                  return res.sendStatus(403)
             } else {
                   let filesUpload = []
                   let activityId = ''
@@ -224,7 +241,7 @@ app.post('/api/v1/activity', verifytoken, (req, res) => {
                               })
                         });
                   
-                        res.status(200).send({
+                        res.send({
                               message: 'success',
                         })
                   })
