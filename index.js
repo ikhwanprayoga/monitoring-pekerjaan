@@ -1,8 +1,11 @@
-const express = require('express')
-const bodyParser = require('body-parser')
-const fileUpload = require('express-fileupload');
-const fs = require('fs')
-const mysql = require('mysql')
+const express     = require('express')
+const bodyParser  = require('body-parser')
+const fileUpload  = require('express-fileupload');
+const fs          = require('fs')
+const mysql       = require('mysql')
+const md5         = require('md5')
+const jwt         = require('jsonwebtoken');
+// const verifytoken = require('../../nodeJS-first/app/routes/verifytoken');
 
 const app = express()
 
@@ -30,154 +33,290 @@ app.use(bodyParser.json())
 // parser req content-type : x-www-form-urlcode
 app.use(bodyParser.urlencoded({ extended: true }))
 
-app.get('/test', (req, res) => {
+app.get('/api/v1/test', (req, res) => {
       res.json({
             message: "welcome to express monitoring pekerjaan"
       })
 })
 
-app.get('/activities', (req, res) => {
-      let sql = 'SELECT * FROM activities ORDER BY id DESC'
-      let query = conn.query(sql, (err, result) => {
-            if (err) throw err
-            res.status(200).send({
-                  message: 'success',
-                  data: result
-            })
-      })
-});
-
-app.get('/activity/:id', (req, res) => {
-      const reqId = req.params.id
-      let sql = `SELECT * FROM activities WHERE id=${reqId}`
-      let query = conn.query(sql, (err, result) => {
-            if (err) throw err
-            res.status(200).send({
-                  message: 'success',
-                  data: result[0]
-            })
-      })
-});
-
-app.post('/activity', (req, res) => {
-      let filesUpload = []
-      let activityId = ''
-      const reqTitle = req.body.title
-      const reqDesc = req.body.description
-      const reqUserId = req.body.user_id
-
-      if (!reqTitle || !reqDesc || !reqUserId) {
-            return res.status(422).send({ 
-                  errors: {
-                        message: "Title, Description Required",
-                  }
-            });
+// regiter
+app.post('/register/dolok-kite', (req, res) => {
+      let input = {
+            name: req.body.name,
+            username: req.body.username,
+            password: md5(req.body.password),
+            level: req.body.level
       }
 
-      // return res.send(sampleFile.mimetype)
-      if (!req.files || Object.keys(req.files).length === 0) {
-            return res.status(422).send({ 
-                  errors: {
-                  message: "Harus melampirkan foto",
-            }});
-      }
+      const sql = `INSERT INTO users SET ?`
       
-      // res.status(200).send({
-      //       file: req.files.photo
-      // })
-
-      if (req.files.files.length > 0) {
-            filesUpload = req.files.files
-      } else {
-            filesUpload.push(req.files.files)
-      }
-      // return res.send(filesUpload)
-      
-      const data = { title : reqTitle, description : reqDesc, user_id : reqUserId }
-      const sql = `INSERT INTO activities SET ?`
-      
-      let query = conn.query(sql, data, (err, result) => {
-
-            if (err) throw err
-            activityId = result.insertId
-
-            filesUpload.forEach(file => {
-                  let fileName = file.name
-                  file.mv(`./public/photos/${activityId}_${fileName}`, (err) => {
-                        if (err) return res.status(500).send(err)
-      
-                        const dataFile = { activity_id: activityId, file: `${activityId}_${fileName}` }
-                        const sqlFile = `INSERT INTO files SET ?`
-                        let queryFile = conn.query(sqlFile, dataFile, (err, result) => {
-                              if (err) throw err
-                              // res.status(200).send({
-                              //       message: 'success',
-                              // })
-                        })
-                        return true
-                  })
-            });
-      
+      let query = conn.query(sql, input, (err, result) => {
             res.status(200).send({
                   message: 'success',
+                  data: input
             })
       })
 
+      if (!query) {
+            res.status(500).send({
+                  message: 'error',
+            })
+      }
 
-});
+})
 
-app.post('/activity/update/:id', (req, res) => {
-      const paramsId = req.params.id
-      const reqTitle = req.body.title
-      const reqDesc = req.body.description
-      const reqUserId = req.body.user_id
+// login
+app.post('/api/v1/login', (req, res) => {
+      let input = {
+            username: req.body.username,
+            password: req.body.password,
+      }
 
-      let sql = `UPDATE activities SET title='${reqTitle}', description='${reqDesc}', user_id=${reqUserId} WHERE id=${paramsId}`
-      let query = conn.query(sql, (err, result) => {
-            if (err) throw err
-            res.status(200).send({
-                  message: 'success'
-            });
-      })
-});
-
-app.delete('/activity/:id', (req, res) => {
-      let path = ''
-      const paramsId = req.params.id
       try {
-            let sql = `DELETE FROM activities WHERE id=${paramsId}`
-            let query = conn.query(sql, (err, result) => {
-                  if (err) {
-                        res.status(500).send(err)
-                  }
-                  // res.send(result)
-                  if (result.affectedRows < 1) {
-                        res.status(404).send({message: 'data not found'})
-                  } else {
-                        let sqlFile = `SELECT * FROM files WHERE activity_id=${paramsId}`
-                        let queryFile = conn.query(sqlFile, (err, result) => {
-                              // res.status(200).send({result});
-                              // delete file
-                              result.forEach(e => {
-                                    path = `./public/photos/${e.file}`
-                                    fs.unlinkSync(path);
-                                    conn.query(`DELETE FROM files WHERE id=${e.id}`)
-                              });
+            let sqlCheck = `SELECT * FROM users WHERE username='${input.username}'`
+            let queryCheck = conn.query(sqlCheck, (err, result) => {
+                  if (err) throw err
+                  if (result.length > 0) {
+                        if (result[0].password === md5(input.password)) {
+                              // password cocok, conf jwt token
+                              let user = {
+                                    name: result[0].name,
+                                    username: result[0].username,
+                                    level: result[0].level,
+                              }
+                              jwt.sign({ user }, 'secretKey', { expiresIn: '1h' }, (err, token) => {
+                                    res.status(200).send({
+                                          status: 'success',
+                                          token: token,
+                                          data: user
+                                    })
+                              })
+                        } else {
                               res.status(200).send({
-                                    message: 'success',
-                              });
+                                    status: 'error',
+                                    message: 'periksa kembali username dan password anda',
+                              })
+                        }
+                  } else {
+                        res.status(200).send({
+                              status: 'error',
+                              message: 'username tidak ditemukan',
                         })
                   }
-                  
             })
-
-
+            
       } catch (error) {
             res.status(500).send({
-                  message: error.message || 'error delete data'
-            });
+                  message: 'error',
+                  error: error
+            })
       }
 })
+
+app.get('/api/v1/check-token', verifytoken, (req, res) => {
+      jwt.verify(req.token, 'secretKey', (err, authData) =>{
+            if (err) {
+                  res.sendStatus(403)
+            } else {
+                  res.status(200).send({
+                        status: 'success',
+                        data: authData
+                  })
+            }
+      })
+})
+
+app.get('/api/v1/activities', verifytoken, (req, res) => {
+      jwt.verify(req.token, 'secretKey', (err, authData) =>{
+            if (err) {
+                  res.sendStatus(403)
+            } else {
+                  let sql = 'SELECT * FROM activities ORDER BY id DESC'
+                  let query = conn.query(sql, (err, result) => {
+                        if (err) throw err
+                        res.status(200).send({
+                              message: 'success',
+                              data: result
+                        })
+                  })
+            }
+      })
+});
+
+app.get('/api/v1/activity/:id', verifytoken, (req, res) => {
+      jwt.verify(req.token, 'secretKey', (err, authData) =>{
+            if (err) {
+                  res.sendStatus(403)
+            } else {
+                  const reqId = req.params.id
+                  let sql = `SELECT * FROM activities WHERE id=${reqId}`
+                  let query = conn.query(sql, (err, result) => {
+                        if (err) throw err
+                        res.status(200).send({
+                              message: 'success',
+                              data: result[0]
+                        })
+                  })
+            }
+      })
+});
+
+app.post('/api/v1/activity', verifytoken, (req, res) => {
+      jwt.verify(req.token, 'secretKey', (err, authData) =>{
+            if (err) {
+                  res.sendStatus(403)
+            } else {
+                  let filesUpload = []
+                  let activityId = ''
+                  const reqTitle = req.body.title
+                  const reqDesc = req.body.description
+                  const reqUserId = req.body.user_id
+            
+                  if (!reqTitle || !reqDesc || !reqUserId) {
+                        return res.status(422).send({ 
+                              errors: {
+                                    message: "Title, Description Required",
+                              }
+                        });
+                  }
+            
+                  // return res.send(sampleFile.mimetype)
+                  if (!req.files || Object.keys(req.files).length === 0) {
+                        return res.status(422).send({ 
+                              errors: {
+                              message: "Harus melampirkan foto",
+                        }});
+                  }
+                  
+                  // res.status(200).send({
+                  //       file: req.files.photo
+                  // })
+            
+                  if (req.files.files.length > 0) {
+                        filesUpload = req.files.files
+                  } else {
+                        filesUpload.push(req.files.files)
+                  }
+                  // return res.send(filesUpload)
+                  
+                  const data = { title : reqTitle, description : reqDesc, user_id : reqUserId }
+                  const sql = `INSERT INTO activities SET ?`
+                  
+                  let query = conn.query(sql, data, (err, result) => {
+            
+                        if (err) throw err
+                        activityId = result.insertId
+            
+                        filesUpload.forEach(file => {
+                              let fileName = file.name
+                              file.mv(`./public/photos/${activityId}_${fileName}`, (err) => {
+                                    if (err) return res.status(500).send(err)
+                  
+                                    const dataFile = { activity_id: activityId, file: `${activityId}_${fileName}` }
+                                    const sqlFile = `INSERT INTO files SET ?`
+                                    let queryFile = conn.query(sqlFile, dataFile, (err, result) => {
+                                          if (err) throw err
+                                          // res.status(200).send({
+                                          //       message: 'success',
+                                          // })
+                                    })
+                                    return true
+                              })
+                        });
+                  
+                        res.status(200).send({
+                              message: 'success',
+                        })
+                  })
+            }
+      })
+});
+
+app.post('/api/v1/activity/update/:id', verifytoken, (req, res) => {
+      jwt.verify(req.token, 'secretKey', (err, authData) =>{
+            if (err) {
+                  res.sendStatus(403)
+            } else {
+                  const paramsId = req.params.id
+                  const reqTitle = req.body.title
+                  const reqDesc = req.body.description
+                  const reqUserId = req.body.user_id
+            
+                  let sql = `UPDATE activities SET title='${reqTitle}', description='${reqDesc}', user_id=${reqUserId} WHERE id=${paramsId}`
+                  let query = conn.query(sql, (err, result) => {
+                        if (err) throw err
+                        res.status(200).send({
+                              message: 'success'
+                        });
+                  })
+            }
+      })
+});
+
+app.delete('/activity/:id', verifytoken, (req, res) => {
+      jwt.verify(req.token, 'secretKey', (err, authData) =>{
+            if (err) {
+                  res.sendStatus(403)
+            } else {
+                  let path = ''
+                  const paramsId = req.params.id
+                  try {
+                        let sql = `DELETE FROM activities WHERE id=${paramsId}`
+                        let query = conn.query(sql, (err, result) => {
+                              if (err) {
+                                    res.status(500).send(err)
+                              }
+                              // res.send(result)
+                              if (result.affectedRows < 1) {
+                                    res.status(404).send({message: 'data not found'})
+                              } else {
+                                    let sqlFile = `SELECT * FROM files WHERE activity_id=${paramsId}`
+                                    let queryFile = conn.query(sqlFile, (err, result) => {
+                                          // res.status(200).send({result});
+                                          // delete file
+                                          result.forEach(e => {
+                                                path = `./public/photos/${e.file}`
+                                                fs.unlinkSync(path);
+                                                conn.query(`DELETE FROM files WHERE id=${e.id}`)
+                                          });
+                                          res.status(200).send({
+                                                message: 'success',
+                                          });
+                                    })
+                              }
+                              
+                        })
+            
+            
+                  } catch (error) {
+                        res.status(500).send({
+                              message: error.message || 'error delete data'
+                        });
+                  }
+            }
+      })
+})
+
+function verifytoken (req, res, next) {
+      //get auht header value
+      const bearerHeader = req.headers['authorization']
+  
+      //check if bearer is undefined
+      if (typeof bearerHeader !== 'undefined') {
+          //verivy token
+          //slit at the sapce
+          const bearer = bearerHeader.split(' ')
+          //get token from index 1 array bearer
+          const bearerToken = bearer[1]
+          //set the token
+          req.token = bearerToken
+          //next midleware
+          next()        
+      } else {
+          //forbidden
+          res.sendStatus(403)
+      }
+  }
 
 const server = app.listen(5000, () => {
       console.log('server running on port 5000 ..')
