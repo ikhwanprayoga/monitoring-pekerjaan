@@ -101,7 +101,7 @@ app.post('/api/v1/login', (req, res) => {
                                     username: result[0].username,
                                     level: result[0].level,
                               }
-                              jwt.sign({ user }, 'secretKey', { expiresIn: '1h' }, (err, token) => {
+                              jwt.sign({ user }, 'secretKey', { expiresIn: '1d' }, (err, token) => {
                                     res.status(200).send({
                                           status: 'success',
                                           token: token,
@@ -148,7 +148,7 @@ app.get('/api/v1/activities', verifytoken, (req, res) => {
             if (err) {
                   res.sendStatus(403)
             } else {
-                  let sql = 'SELECT * FROM activities ORDER BY id DESC'
+                  let sql = 'SELECT activities.id, activities.title, activities.description, files.file FROM activities LEFT JOIN files  on activities.id = files.activity_id GROUP BY id ORDER BY id DESC'
                   let query = conn.query(sql, (err, result) => {
                         if (err) throw err
                         res.status(200).json({
@@ -167,7 +167,7 @@ app.get('/api/v1/activity/:id', verifytoken, (req, res) => {
             } else {
                   const reqId = req.params.id
                   let sql = `SELECT * FROM activities WHERE id=${reqId}`
-                  let sqlFoto = `SELECT * FROM files WHERE activity_id=${reqId}`
+                  let sqlFoto = `SELECT file FROM files WHERE activity_id=${reqId}`
 
                   conn.query(sql, (err, result) => {
                         if (err) throw err
