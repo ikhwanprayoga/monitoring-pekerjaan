@@ -167,13 +167,25 @@ app.get('/api/v1/activity/:id', verifytoken, (req, res) => {
             } else {
                   const reqId = req.params.id
                   let sql = `SELECT * FROM activities WHERE id=${reqId}`
-                  let query = conn.query(sql, (err, result) => {
+                  let sqlFoto = `SELECT * FROM files WHERE activity_id=${reqId}`
+
+                  conn.query(sql, (err, result) => {
                         if (err) throw err
-                        res.status(200).send({
-                              message: 'success',
-                              data: result[0]
+                        const detail = result[0]
+                        
+                        conn.query(sqlFoto, (err, result) => {
+                              if (err) throw err
+                              const files = result
+
+                              res.status(200).send({
+                                    message: 'success',
+                                    detail: detail,
+                                    files: files
+                              })
                         })
                   })
+
+
             }
       })
 });
