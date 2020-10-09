@@ -233,29 +233,31 @@ app.post('/api/v1/activity', verifytoken, (req, res) => {
                   
                   let query = conn.query(sql, data, (err, result) => {
             
-                        if (err) throw err
-                        activityId = result.insertId
-            
-                        filesUpload.forEach(file => {
-                              let fileName = file.name
-                              file.mv(`./public/photos/${activityId}_${fileName}`, (err) => {
-                                    if (err) return res.status(500).send(err)
+                        if (err) {throw err} else {
+
+                              activityId = result.insertId
                   
-                                    const dataFile = { activity_id: activityId, file: `${activityId}_${fileName}` }
-                                    const sqlFile = `INSERT INTO files SET ?`
-                                    let queryFile = conn.query(sqlFile, dataFile, (err, result) => {
-                                          if (err) throw err
-                                          // res.status(200).send({
-                                          //       message: 'success',
-                                          // })
+                              filesUpload.forEach(file => {
+                                    let fileName = file.name
+                                    file.mv(`./public/photos/${activityId}_${fileName}`, (err) => {
+                                          if (err) return res.status(500).send(err)
+                        
+                                          const dataFile = { activity_id: activityId, file: `${activityId}_${fileName}` }
+                                          const sqlFile = `INSERT INTO files SET ?`
+                                          let queryFile = conn.query(sqlFile, dataFile, (err, result) => {
+                                                if (err) {throw err}
+                                                // res.status(200).send({
+                                                //       message: 'success',
+                                                // })
+                                          })
+                                          return true
                                     })
-                                    return true
+                              });
+                        
+                              res.send({
+                                    message: 'success',
                               })
-                        });
-                  
-                        res.send({
-                              message: 'success',
-                        })
+                        }
                   })
             }
       })
