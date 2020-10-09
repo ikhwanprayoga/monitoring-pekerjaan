@@ -6,12 +6,13 @@ const mysql       = require('mysql')
 const md5         = require('md5')
 const jwt         = require('jsonwebtoken');
 const cors        = require('cors')
+require('dotenv/config')
 // const verifytoken = require('../../nodeJS-first/app/routes/verifytoken');
 
 const app = express()
 
 let whiteList = [
-      'http://localhost:3000'
+      `${process.env.WHITE_LIST}`,
   ]
   
 let corsOption = {
@@ -33,10 +34,10 @@ app.use(express.static('public'))
 
 // conf db connection
 const conn = mysql.createConnection({
-      host: 'localhost',
-      user: 'root',
-      password: '',
-      database: 'monitoring_pekerjaan'
+      host: process.env.DB_HOST,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_DATABASE
 })
 
 // create connection to db
@@ -148,7 +149,7 @@ app.get('/api/v1/activities', verifytoken, (req, res) => {
             if (err) {
                   res.sendStatus(403)
             } else {
-                  let sql = 'SELECT activities.id, activities.title, activities.description, files.file FROM activities LEFT JOIN files  on activities.id = files.activity_id GROUP BY id ORDER BY id DESC'
+                  let sql = 'SELECT activities.id, activities.title, activities.description, activities.date, files.file FROM activities LEFT JOIN files  on activities.id = files.activity_id GROUP BY id ORDER BY id DESC'
                   let query = conn.query(sql, (err, result) => {
                         if (err) throw err
                         res.status(200).json({
@@ -200,11 +201,12 @@ app.post('/api/v1/activity', verifytoken, (req, res) => {
                   const reqTitle = req.body.title
                   const reqDesc = req.body.description
                   const reqUserId = req.body.user_id
+                  const reqDate = req.body.date
             
-                  if (!reqTitle || !reqDesc || !reqUserId) {
+                  if (!reqTitle || !reqDesc || !reqUserId || !reqDate) {
                         return res.status(422).send({ 
                               errors: {
-                                    message: "Title, Description Required",
+                                    message: "Title, Description, Date Required",
                               }
                         });
                   }
@@ -228,7 +230,7 @@ app.post('/api/v1/activity', verifytoken, (req, res) => {
                   }
                   // return res.send(filesUpload)
                   
-                  const data = { title : reqTitle, description : reqDesc, user_id : reqUserId }
+                  const data = { title : reqTitle, description : reqDesc, user_id : reqUserId, date : reqDate }
                   const sql = `INSERT INTO activities SET ?`
                   
                   let query = conn.query(sql, data, (err, result) => {
