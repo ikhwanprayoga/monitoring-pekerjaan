@@ -193,7 +193,7 @@ app.get('/api/v1/activity/:id', verifytoken, (req, res) => {
 app.post('/api/v1/activity', verifytoken, (req, res) => {
       jwt.verify(req.token, 'secretKey', (err, authData) =>{
             if (err) {
-                  return res.sendStatus(403)
+                  res.sendStatus(403)
             } else {
                   let filesUpload = []
                   let activityId = ''
@@ -202,19 +202,20 @@ app.post('/api/v1/activity', verifytoken, (req, res) => {
                   const reqUserId = req.body.user_id
             
                   if (!reqTitle || !reqDesc || !reqUserId) {
-                        return res.status(422).send({ 
+                        res.status(422).send({ 
                               errors: {
                                     message: "Title, Description Required",
                               }
                         });
                   }
             
-                  // return res.send(sampleFile.mimetype)
+                  // res.send(sampleFile.mimetype)
                   if (!req.files || Object.keys(req.files).length === 0) {
-                        return res.status(422).send({ 
+                        res.status(422).send({ 
                               errors: {
                               message: "Harus melampirkan foto",
                         }});
+                        
                   }
                   
                   // res.status(200).send({
@@ -240,21 +241,20 @@ app.post('/api/v1/activity', verifytoken, (req, res) => {
                               filesUpload.forEach(file => {
                                     let fileName = file.name
                                     file.mv(`./public/photos/${activityId}_${fileName}`, (err) => {
-                                          if (err) return res.status(500).send(err)
+                                          if (err) {
+                                                res.status(500).send(err)
+                                          } else {
+                                                const dataFile = { activity_id: activityId, file: `${activityId}_${fileName}` }
+                                                const sqlFile = `INSERT INTO files SET ?`
+                                                conn.query(sqlFile, dataFile, (err, result) => {
+                                                      if (err) {throw err}
+                                                })
+                                          }
                         
-                                          const dataFile = { activity_id: activityId, file: `${activityId}_${fileName}` }
-                                          const sqlFile = `INSERT INTO files SET ?`
-                                          let queryFile = conn.query(sqlFile, dataFile, (err, result) => {
-                                                if (err) {throw err}
-                                                // res.status(200).send({
-                                                //       message: 'success',
-                                                // })
-                                          })
-                                          return true
                                     })
                               });
                         
-                              res.send({
+                              res.status(200).json({
                                     message: 'success',
                               })
                         }
