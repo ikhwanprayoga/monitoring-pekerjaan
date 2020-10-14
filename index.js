@@ -149,7 +149,7 @@ app.get('/api/v1/activities', verifytoken, (req, res) => {
             if (err) {
                   res.sendStatus(403)
             } else {
-                  let sql = 'SELECT activities.id, activities.title, activities.description, activities.date, files.file FROM activities LEFT JOIN files  on activities.id = files.activity_id GROUP BY id ORDER BY id DESC'
+                  let sql = 'SELECT activities.id, activities.title, activities.description, activities.date, activities.is_work, files.file FROM activities LEFT JOIN files  on activities.id = files.activity_id GROUP BY id ORDER BY id DESC'
                   let query = conn.query(sql, (err, result) => {
                         if (err) throw err
                         res.status(200).json({
@@ -202,6 +202,7 @@ app.post('/api/v1/activity', verifytoken, (req, res) => {
                   const reqDesc = req.body.description
                   const reqUserId = req.body.user_id
                   const reqDate = req.body.date
+                  const reqIsWork = req.body.is_work
             
                   if (!reqTitle || !reqDesc || !reqUserId || !reqDate) {
                         return res.status(422).send({ 
@@ -228,7 +229,7 @@ app.post('/api/v1/activity', verifytoken, (req, res) => {
                               }
                               // return res.send(filesUpload)
                               
-                              const data = { title : reqTitle, description : reqDesc, user_id : reqUserId, date : reqDate }
+                              const data = { title : reqTitle, description : reqDesc, user_id : reqUserId, date : reqDate, is_work : reqIsWork }
                               const sql = `INSERT INTO activities SET ?`
                               
                               conn.query(sql, data, (err, result) => {
