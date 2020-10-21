@@ -144,6 +144,58 @@ app.get('/api/v1/check-token', verifytoken, (req, res) => {
       })
 })
 
+app.get('/api/v1/projects', verifytoken, (req, res) => {
+      jwt.verify(req.token, 'secretKey', (err, authData) => {
+            if (err) {
+                  res.sendStatus(403)
+            } else {
+                  let sql = 'SELECT * FROM projects ORDER BY id DESC'
+                  conn.query(sql, (err, result) => {
+                        if (err) throw err
+                        res.status(200).json({
+                              message: 'success',
+                              data: result
+                        })
+                  })
+            }
+      })
+})
+
+app.post('/api/v1/project', verifytoken, (req, res) => {
+      jwt.verify(req.token, 'secretKey', (err, authData) =>{
+            if (err) {
+                  res.sendStatus(403)
+            } else {
+                  const reqTitle = req.body.title
+                  const reqDesc = req.body.description
+            
+                  if (!reqTitle) {
+                        return res.status(422).send({ 
+                              errors: {
+                                    message: "Title Required",
+                              }
+                        });
+                  } else {
+                        // res.send(sampleFile.mimetype)
+                        const data = { title : reqTitle, description : reqDesc }
+                        const sql = `INSERT INTO projects SET ?`
+                        
+                        conn.query(sql, data, (err, result) => {
+                  
+                              if (err) {throw err} else {
+                              
+                                    res.status(200).json({
+                                          message: 'success',
+                                    })
+                              }
+                        })
+                        
+                  }
+            
+            }
+      })
+});
+
 app.get('/api/v1/activities', verifytoken, (req, res) => {
       jwt.verify(req.token, 'secretKey', (err, authData) =>{
             if (err) {
@@ -160,6 +212,21 @@ app.get('/api/v1/activities', verifytoken, (req, res) => {
             }
       })
 });
+
+app.get('/api/v1/project/:id/activity', verifytoken, (req, res) => {
+      jwt.verify(req.token, 'secretKey', (err, authData) => {
+            const reqId = req.params.id
+            let sql = `SELECT * FROM activities WHERE project_id=${reqId} ORDER BY id DESC`
+            conn.query(sql, (err, result) => {
+                  if (err) {throw err} else {
+                        res.status(200).json({
+                              message: 'success',
+                              data: result
+                        })
+                  }
+            })
+      })
+})
 
 app.get('/api/v1/activity/:id', verifytoken, (req, res) => {
       jwt.verify(req.token, 'secretKey', (err, authData) =>{
@@ -201,6 +268,7 @@ app.post('/api/v1/activity', verifytoken, (req, res) => {
                   const reqTitle = req.body.title
                   const reqDesc = req.body.description
                   const reqUserId = req.body.user_id
+                  const reqProjectId = req.body.project_id
                   const reqDate = req.body.date
                   const reqIsWork = req.body.is_work
             
@@ -229,7 +297,7 @@ app.post('/api/v1/activity', verifytoken, (req, res) => {
                               }
                               // return res.send(filesUpload)
                               
-                              const data = { title : reqTitle, description : reqDesc, user_id : reqUserId, date : reqDate, is_work : reqIsWork }
+                              const data = { title : reqTitle, description : reqDesc, user_id : reqUserId, project_id : reqProjectId, date : reqDate, is_work : reqIsWork }
                               const sql = `INSERT INTO activities SET ?`
                               
                               conn.query(sql, data, (err, result) => {
