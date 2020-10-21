@@ -216,7 +216,7 @@ app.get('/api/v1/activities', verifytoken, (req, res) => {
 app.get('/api/v1/project/:id/activity', verifytoken, (req, res) => {
       jwt.verify(req.token, 'secretKey', (err, authData) => {
             const reqId = req.params.id
-            let sql = `SELECT * FROM activities WHERE project_id=${reqId} ORDER BY id DESC`
+            let sql = `SELECT activities.id, activities.title, activities.description, activities.date, activities.is_work, files.file FROM activities LEFT JOIN files  on activities.id = files.activity_id WHERE activities.project_id = ${reqId} GROUP BY id ORDER BY id DESC`
             conn.query(sql, (err, result) => {
                   if (err) {throw err} else {
                         res.status(200).json({
