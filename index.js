@@ -400,6 +400,121 @@ app.delete('/activity/:id', verifytoken, (req, res) => {
       })
 })
 
+// crud documents
+app.get('/api/v1/document/:id', verifytoken, (req, res) => {
+      jwt.verify(req.token, 'secretKey', (err, authData) =>{
+            if (err) {
+                  res.sendStatus(403)
+            } else {
+                  const reqId = req.params.id
+                  let sql = `SELECT * FROM documents WHERE project_id=${reqId}`
+
+                  conn.query(sql, (err, result) => {
+                        if (err) throw err
+                        
+                        res.status(200).send({
+                              message: 'success',
+                              data: result,
+                        })
+                  })
+
+
+            }
+      })
+});
+
+app.post('/api/v1/document', verifytoken, (req, res) => {
+      jwt.verify(req.token, 'secretKey', (err, authData) =>{
+            if (err) {
+                  res.sendStatus(403)
+            } else {
+
+                  const reqTitle = req.body.title
+                  const reqUserId = req.body.user_id
+                  const reqProjectId = req.body.project_id
+                  const fileDocument = req.files.file
+
+                  if ( !reqTitle ) {
+                        return res.status(422).send({ 
+                              errors: {
+                                    message: "Title Required",
+                              }
+                        });
+                  } else {
+                        // res.send(sampleFile.mimetype)
+                        if (!req.files || Object.keys(req.files).length === 0) {
+                              res.status(422).send({ 
+                                    errors: {
+                                          message: "Harus melampirkan document",
+                                    }
+                              });
+                        } else {
+                              
+                              let fileName = fileDocument.name
+
+                              fileDocument.mv(`./public/documents/${fileName}`, (err) => {
+                                    if (err) {
+                                          res.status(500).send(err)
+                                    }
+                              })
+
+                              const data = { title : reqTitle, user_id : reqUserId, project_id : reqProjectId, file : fileName }
+                              const sql = `INSERT INTO documents SET ?`
+                              
+                              conn.query(sql, data, (err, result) => {
+                                    if (err) {throw err} else {
+                                          res.status(200).json({
+                                                message: 'success',
+                                          })
+                                    }
+                              })
+                        }
+                  }
+            }
+      })
+});
+
+app.delete('/api/v1/document/:id', verifytoken, (req, res) => {
+      jwt.verify(req.token, 'secretKey', (err, authData) =>{
+            if (err) {
+                  res.sendStatus(403)
+            } else {
+                  let path = ''
+                  const paramsId = req.params.id
+                  try {
+                        let sql = `SELECT * FROM documents WHERE id=${paramsId} LIMIT 1`
+                        let query = conn.query(sql, (err, result) => {
+                              if (err) {
+                                    res.status(500).send(err)
+                              }
+                              // res.send(result)
+                              if (result.affectedRows < 1) {
+                                    res.status(404).send({message: 'data not found'})
+                              } else {
+                                    let fileName = result[0].file
+                                    path = `./public/documents/${fileName}`
+                                    fs.unlinkSync(path);
+                                    if (conn.query(`DELETE FROM documents WHERE id=${paramsId}`)) {
+                                          res.status(200).send({
+                                                message: 'success',
+                                          });
+                                    } else {
+                                          res.status(200).send({
+                                                message: 'error delete row from ducuments',
+                                          });
+                                    } 
+                              }
+                              
+                        })
+                  } catch (error) {
+                        res.status(500).send({
+                              message: error.message || 'error delete data'
+                        });
+                  }
+            }
+      })
+})
+
 function verifytoken (req, res, next) {
       //get auht header value
       const bearerHeader = req.headers['authorization']
