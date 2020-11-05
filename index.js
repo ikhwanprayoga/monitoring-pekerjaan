@@ -493,7 +493,9 @@ app.delete('/api/v1/document/:id', verifytoken, (req, res) => {
                               } else {
                                     let fileName = result[0].file
                                     path = `./public/documents/${fileName}`
-                                    fs.unlinkSync(path);
+                                    if (fs.existsSync(path)) {
+                                          fs.unlinkSync(path);
+                                    }
                                     if (conn.query(`DELETE FROM documents WHERE id=${paramsId}`)) {
                                           res.status(200).send({
                                                 message: 'success',
